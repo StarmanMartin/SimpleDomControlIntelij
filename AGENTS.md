@@ -23,9 +23,15 @@ The parent repo's `AGENTS.md` and `DOCUMENTATION.md` (one level up) describe the
   `python3` (asdf 3.13) has Django 6.0.6 and runs the commands fine. Default interpreter `python3`.
 - Stack versions are pinned in `build.gradle.kts`: IntelliJ Platform Gradle Plugin 2.19.0,
   Kotlin 2.4.20 (2.4.21 is RC-only on the Gradle portal), Gradle wrapper 9.8.0, dev platform
-  `intellijIdeaCommunity("2024.2.4")`, sinceBuild 242. The foojay resolver
-  (`settings.gradle.kts`) auto-provisions the JDK 21 toolchain that the platform plugin demands —
-  the local default JDK is 25; keep Kotlin `jvmTarget = 21` (IDEs run JBR 21).
+  `pycharmProfessional("2026.2.3")` (the user's installed Toolbox PyCharm 2026.2.3, build
+  262.*, JBR **25**), sinceBuild 262, **no untilBuild** (open-ended so it keeps installing
+  after IDE updates).
+- **Do not pin** `java { source/targetCompatibility }` or `kotlin { compilerOptions { jvmTarget } }`
+  — the platform plugin drives the JVM target from the dev platform's JBR (25 for 2026.2);
+  pinning 21 caused "Inconsistent JVM Target Compatibility" (compileJava 21 vs compileKotlin 25).
+  Bytecode 25 means the plugin requires IDE 2026.2+; dropping to an older dev platform would
+  need the 21 bytecode pinned consistently (foojay resolver in `settings.gradle.kts` provisions
+  toolchain JDKs).
 - `GRADLE_USER_HOME` may point elsewhere; builds were done with
   `GRADLE_USER_HOME=/tmp/opencode/gradle-home`. First build downloads ~1 GB (the IDE) + JDK 21.
 - `buildSearchableOptions` is disabled in `build.gradle.kts` (it launches the IDE).

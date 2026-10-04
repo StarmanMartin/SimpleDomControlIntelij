@@ -16,21 +16,14 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        // Compile target: IntelliJ IDEA 2024.2 (JBR 21). Gson comes from the platform.
-        intellijIdeaCommunity("2024.2.4")
+        // Compile target: PyCharm Professional 2026.2 (installed via Toolbox, build 262.*).
+        pycharmProfessional("2026.2.3")
     }
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-    }
-}
+// JVM target is driven by the IntelliJ Platform plugin (matches the platform's JBR;
+// PyCharm 2026.2 runs JBR 25). Do not pin source/targetCompatibility manually here —
+// that causes the "Inconsistent JVM Target Compatibility" failure.
 
 intellijPlatform {
     pluginConfiguration {
@@ -38,8 +31,10 @@ intellijPlatform {
         name = "SimpleDomControl"
         version = project.version.toString()
         ideaVersion {
-            sinceBuild = "242"
-            untilBuild = provider { "261.*" }
+            // 2026.2+ only: compiled with JVM 25 bytecode, matching the platform's JBR 25.
+            sinceBuild = "262"
+            // Open-ended: stays installable on future IDE versions (e.g. 2026.3+).
+            untilBuild = provider { null }
         }
     }
 }

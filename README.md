@@ -26,7 +26,9 @@ working directory; they only exist after `python manage.py sdc_init` (the projec
 
 ## Requirements
 
-- An SDC-initialized Django project opened in IntelliJ IDEA (2024.2+).
+- PyCharm (developed and compiled against PyCharm Professional 2026.2.3, build 262.*;
+  **requires IDE 2026.2 or newer** — classes are JVM 25 bytecode, matching the 2026.2 JBR)
+  with an SDC-initialized Django project opened.
 - A Python interpreter with Django installed that can run the project's `manage.py`
   (the framework requires Python >= 3.13, Django >= 6.0).
 
@@ -46,6 +48,8 @@ working directory; they only exist after `python manage.py sdc_init` (the projec
 ```
 
 Install the zip via `Settings > Plugins > ⚙ > Install Plugin from Disk...`.
+The plugin only depends on the IntelliJ Platform (`com.intellij.modules.platform`), so the same
+zip installs into IntelliJ IDEA, PyCharm Community/Professional, etc.
 
 ## Notes
 
