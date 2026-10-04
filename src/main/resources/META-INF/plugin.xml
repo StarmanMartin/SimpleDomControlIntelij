@@ -1,0 +1,24 @@
+<idea-plugin>
+    <id>com.starmanmartin.sdc.intellij</id>
+    <name>SimpleDomControl</name>
+    <vendor url="https://github.com/StarmanMartin" email="private@martin-starman.com">Martin Starman</vendor>
+    <description><![CDATA[
+    Tool window support for <a href="https://github.com/StarmanMartin/SimpleDomControl">SimpleDomControl (SDC)</a>
+    projects. Shows all SDC models (python model, forms, list/detail/form templates) and all SDC controllers
+    (tag name, URL, python view, JS/SCSS/HTML files) grouped by Django app. Running the entries opens the
+    file in the editor at the class definition line.
+    The information is gathered by the Django management commands
+    <code>sdc_get_controller_infos</code> and <code>sdc_get_model_infos</code>.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="SDC" anchor="left" icon="/icons/sdcToolWindow.svg"
+                    factoryClass="com.starmanmartin.sdc.intellij.SdcToolWindowFactory"/>
+        <projectService serviceImplementation="com.starmanmartin.sdc.intellij.settings.SdcSettingsState"/>
+        <projectConfigurable parentId="tools" id="sdc.settings" displayName="SimpleDomControl"
+                             instance="com.starmanmartin.sdc.intellij.settings.SdcConfigurable"
+                             nonDefaultProject="true"/>
+    </extensions>
+</idea-plugin>
