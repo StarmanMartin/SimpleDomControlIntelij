@@ -3,6 +3,7 @@ package com.starmanmartin.sdc.intellij
 import com.google.gson.Gson
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.util.ExecUtil
+import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.starmanmartin.sdc.intellij.settings.SdcSettingsState
@@ -19,6 +20,7 @@ class SdcCommandException(message: String, val output: String) : RuntimeExceptio
  *
  * Blocking calls — invoke from a background thread only.
  */
+@Service(Service.Level.PROJECT)
 class SdcInfoService(private val project: Project) {
 
     companion object {

@@ -49,6 +49,10 @@ The parent repo's `AGENTS.md` and `DOCUMENTATION.md` (one level up) describe the
 - `ProcessOutput` has no `isSuccess`; check `exitCode != 0 || isTimeout`.
 - `Task.Backgroundable.onError(Exception)` is deprecated → use `onFinished()` (EDT, always called)
   and handle both result and error there. `onSuccess()` alone misses errors.
+- Services looked up with `project.getService(...)` must be registered — either `<projectService>`
+  in `plugin.xml` or a **light service** (`@Service(Service.Level.PROJECT)`). `SdcInfoService`
+  lacked both and crashed at runtime with `getService(...) must not be null` on the first tool
+  window load (Kotlin deref of the null platform-type result).
 - `XmlSerializer.copyInto` does not exist; copy persisted fields manually in `loadState`.
 - `javap` is not installed here; to check platform API/icon constants, read the class file with
   python (`zipfile` + regex over `lib/app-client.jar`, e.g. `com/intellij/icons/AllIcons$Nodes.class`).
