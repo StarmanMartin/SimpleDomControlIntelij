@@ -39,6 +39,11 @@ abstract class SdcTreeNode(val label: String, val icon: Icon, val hint: String? 
     open val children: List<SdcTreeNode> = emptyList()
     open val textAttributes: SimpleTextAttributes = SimpleTextAttributes.REGULAR_ATTRIBUTES
 
+    /** Texts the tool window search matches against; nodes without terms are not searchable. */
+    open val searchTerms: List<String> = emptyList()
+
+    fun matches(query: String): Boolean = searchTerms.any { it.contains(query, ignoreCase = true) }
+
     /** Called on double click. Return true if the node handled the action. */
     open fun onDoubleClick(project: Project): Boolean = false
 }
@@ -81,6 +86,8 @@ class SdcGroupNode(
 class SdcControllerNode(info: com.starmanmartin.sdc.intellij.SdcControllerInfo) :
     SdcTreeNode(info.name ?: "controller", SdcIcons.controller, info.tagName?.let { "<$it>" }) {
 
+    override val searchTerms: List<String> = listOfNotNull(info.name, info.tagName)
+
     override val children: List<SdcTreeNode> = run {
         val items = mutableListOf<SdcTreeNode>()
         info.tagName?.let { items.add(SdcInfoNode("tag", SdcIcons.tag, "<$it>")) }
@@ -96,6 +103,8 @@ class SdcControllerNode(info: com.starmanmartin.sdc.intellij.SdcControllerInfo) 
 /** One SdcModel: python model, forms and list/detail/form templates. */
 class SdcModelNode(info: com.starmanmartin.sdc.intellij.SdcModelInfo) :
     SdcTreeNode(info.name ?: "model", SdcIcons.model) {
+
+    override val searchTerms: List<String> = listOfNotNull(info.name)
 
     override val children: List<SdcTreeNode> = run {
         val items = mutableListOf<SdcTreeNode>()

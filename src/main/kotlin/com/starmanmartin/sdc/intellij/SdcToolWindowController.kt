@@ -1,5 +1,6 @@
 package com.starmanmartin.sdc.intellij
 
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
@@ -10,6 +11,10 @@ import com.intellij.openapi.ui.Messages
  * fetches one [SdcSnapshot] (both management commands) and pushes it into both tabs.
  */
 class SdcToolWindowController(private val project: Project) {
+
+    companion object {
+        private val LOG = Logger.getInstance(SdcToolWindowController::class.java)
+    }
 
     val controllersPanel = SdcToolWindowPanel(project, SdcTabKind.CONTROLLERS, ::refresh)
     val modelsPanel = SdcToolWindowPanel(project, SdcTabKind.MODELS, ::refresh)
@@ -47,11 +52,22 @@ class SdcToolWindowController(private val project: Project) {
                 if (project.isDisposed) return
                 val result = snapshot
                 when {
-                    result != null -> panels.forEach { it.showSnapshot(result) }
+                    result != null -> {
+                        panels.forEach { it.showSnapshot(result) }
+                        syncHtmlInspections(result)
+                    }
                     error != null -> showError(error!!)
                 }
             }
         }.queue()
+    }
+
+    private fun syncHtmlInspections(snapshot: SdcSnapshot) {
+        try {
+            SdcHtmlInspectionSync.sync(project, snapshot)
+        } catch (e: Exception) {
+            LOG.warn("Registering SDC tags/attributes in the HTML inspections failed", e)
+        }
     }
 
     private fun showError(error: SdcCommandException) {

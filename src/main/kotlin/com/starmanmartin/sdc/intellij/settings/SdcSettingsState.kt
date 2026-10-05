@@ -19,11 +19,19 @@ class SdcSettingsState : PersistentStateComponent<SdcSettingsState> {
      */
     var managePyDir: String = ""
 
+    /** Custom "Unknown HTML tag" entries added by the plugin (controller tags), see SdcHtmlInspectionSync. */
+    var managedHtmlTags: MutableList<String> = mutableListOf()
+
+    /** Custom "Unknown HTML attribute" entries added by the plugin (sdc_<event>), see SdcHtmlInspectionSync. */
+    var managedHtmlAttributes: MutableList<String> = mutableListOf()
+
     override fun getState(): SdcSettingsState = this
 
     override fun loadState(state: SdcSettingsState) {
         pythonInterpreter = state.pythonInterpreter
         managePyDir = state.managePyDir
+        managedHtmlTags = state.managedHtmlTags.toMutableList()
+        managedHtmlAttributes = state.managedHtmlAttributes.toMutableList()
     }
 
     fun resolveProjectDir(projectRoot: Path): Path {
