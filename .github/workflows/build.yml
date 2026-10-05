@@ -52,3 +52,8 @@ jobs:
         with:
           files: dist/*.zip
           generate_release_notes: true
+          body: |
+            ## Install
+            1. Download `SimpleDomControlIntelij-*.zip` below (do not unpack it).
+            2. In PyCharm (2026.2 or newer): **Settings → Plugins → ⚙ → Install Plugin from Disk…** and pick the zip.
+            3. Restart the IDE; the **SDC** tool window appears on the left.
