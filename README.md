@@ -1,7 +1,8 @@
 # SimpleDomControl IntelliJ
 
 An IntelliJ Platform plugin that adds a **left-side "SDC" tool window** listing all
-SimpleDomControl models and controllers of the currently open SDC Django project.
+SimpleDomControl models and controllers of the currently open SDC Django project, in two tabs
+("Controllers" and "Models"). Refreshing either tab reloads both.
 
 - **Models** — per app: python model file (at the class line), create/edit form classes, and the
   list / detail / form templates.

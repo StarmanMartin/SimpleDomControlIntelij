@@ -5,10 +5,9 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
+import com.intellij.ui.ColoredTreeCellRenderer
+import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.components.JBScrollPane
 import com.intellij.util.ui.UIUtil
@@ -27,13 +26,22 @@ import javax.swing.tree.TreeSelectionModel
 import java.awt.BorderLayout
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import javax.swing.tree.DefaultTreeCellRenderer
 
-class SdcToolWindowPanel(private val project: Project) : JBPanel<SdcToolWindowPanel>(BorderLayout()) {
+/** Which part of the snapshot a tool window tab shows. [command] prefixes that command's errors in [SdcSnapshot.errors]. */
+enum class SdcTabKind(val title: String, val command: String) {
+    CONTROLLERS("Controllers", "sdc_get_controller_infos"),
+    MODELS("Models", "sdc_get_model_infos"),
+}
 
-    private val tree = JTree(DefaultTreeModel(DefaultMutableTreeNode("SimpleDomControl")))
+/** One tab of the SDC tool window: a tree of either controllers or models. Data is pushed in by [SdcToolWindowController]. */
+class SdcToolWindowPanel(
+    private val project: Project,
+    private val kind: SdcTabKind,
+    private val onRefresh: () -> Unit,
+) : JBPanel<SdcToolWindowPanel>(BorderLayout()) {
+
+    private val tree = JTree(DefaultTreeModel(DefaultMutableTreeNode(kind.title)))
     private val statusLabel = JLabel(" ")
-    private var refreshing = false
 
     init {
         val group = DefaultActionGroup().apply { add(RefreshAction()) }
@@ -57,77 +65,41 @@ class SdcToolWindowPanel(private val project: Project) : JBPanel<SdcToolWindowPa
 
         statusLabel.border = EmptyBorder(2, 8, 2, 8)
         add(statusLabel, BorderLayout.SOUTH)
-
-        refresh()
     }
 
     private inner class RefreshAction :
         AnAction("Refresh SDC Infos", "Run sdc_get_controller_infos and sdc_get_model_infos", AllIcons.Actions.Refresh) {
         override fun actionPerformed(e: AnActionEvent) {
-            refresh()
+            onRefresh()
         }
     }
 
-    fun refresh() {
-        if (refreshing || project.isDisposed) return
-        refreshing = true
+    fun showLoading() {
         setStatus("Updating SimpleDomControl infos...", UIUtil.getLabelForeground())
-        object : Task.Backgroundable(project, "Loading SimpleDomControl infos", true) {
-            var snapshot: SdcSnapshot? = null
-            var error: SdcCommandException? = null
-
-            override fun run(indicator: ProgressIndicator) {
-                try {
-                    snapshot = SdcInfoService.getInstance(project).fetchSnapshot()
-                } catch (e: SdcCommandException) {
-                    error = e
-                } catch (e: Exception) {
-                    error = SdcCommandException(e.message ?: e.javaClass.simpleName, "")
-                }
-            }
-
-            override fun onSuccess() {
-                // handled in onFinished()
-            }
-
-            override fun onFinished() {
-                refreshing = false
-                if (project.isDisposed) return
-                val result = snapshot
-                when {
-                    result != null -> applySnapshot(result)
-                    error != null -> showError(error!!)
-                }
-            }
-        }.queue()
     }
 
-    private fun applySnapshot(snapshot: SdcSnapshot) {
-        tree.model = DefaultTreeModel(buildTree(snapshot))
+    fun showSnapshot(snapshot: SdcSnapshot) {
+        val errors = snapshot.errors.filter { it.startsWith("${kind.command}:") }
+        tree.model = DefaultTreeModel(buildTree(snapshot, errors))
         expandTopLevel()
-        val controllerCount = snapshot.controllers.values.sumOf { it.size }
-        val parts = mutableListOf("Updated", "$controllerCount controllers,", "${snapshot.models.size} models")
-        if (snapshot.errors.isNotEmpty()) {
-            parts.add("with warnings (${snapshot.errors.size})")
-            setStatus(parts.joinToString(" "), UIUtil.getErrorForeground())
+        val count = when (kind) {
+            SdcTabKind.CONTROLLERS -> "${snapshot.controllers.values.sumOf { it.size }} controllers"
+            SdcTabKind.MODELS -> "${snapshot.models.size} models"
+        }
+        if (errors.isNotEmpty()) {
+            setStatus("Updated $count with warnings (${errors.size})", UIUtil.getErrorForeground())
         } else {
-            setStatus(parts.joinToString(" "), UIUtil.getLabelForeground())
+            setStatus("Updated $count", UIUtil.getLabelForeground())
         }
     }
 
-    private fun showError(error: SdcCommandException) {
-        val message = buildString {
-            append(error.message ?: "Unknown error")
-            append("\n\n")
-            append(error.output.takeLast(2000).trim())
-        }.ifBlank { "no command output" }
-        setStatus(error.message ?: "Unknown error", UIUtil.getErrorForeground())
-        val errorRoot = DefaultMutableTreeNode(SdcGroupNode("Error - SDC infos unavailable", SdcIcons.app, emptyList()), true)
-        val details = DefaultMutableTreeNode(SdcInfoNode(message.replace("\n", " ").take(200), SdcIcons.info), false)
+    fun showError(message: String, statusText: String) {
+        setStatus(statusText, UIUtil.getErrorForeground())
+        val errorRoot = DefaultMutableTreeNode(SdcGroupNode("Error - SDC infos unavailable", SdcIcons.error, emptyList()), true)
+        val details = DefaultMutableTreeNode(SdcInfoNode(message.replace("\n", " ").take(200), SdcIcons.error), false)
         errorRoot.add(details)
         tree.model = DefaultTreeModel(errorRoot)
         tree.expandRow(0)
-        Messages.showErrorDialog(project, message, "SimpleDomControl")
     }
 
     private fun setStatus(text: String, color: java.awt.Color) {
@@ -135,25 +107,25 @@ class SdcToolWindowPanel(private val project: Project) : JBPanel<SdcToolWindowPa
         statusLabel.foreground = color
     }
 
-    private fun buildTree(snapshot: SdcSnapshot): DefaultMutableTreeNode {
-        val root = DefaultMutableTreeNode(SdcGroupNode("SimpleDomControl", SdcIcons.root, emptyList()), true)
+    private fun buildTree(snapshot: SdcSnapshot, errors: List<String>): DefaultMutableTreeNode {
+        val root = DefaultMutableTreeNode(SdcGroupNode(kind.title, SdcIcons.app, emptyList()), true)
 
-        val controllerGroups = snapshot.controllers
-            .filter { it.value.isNotEmpty() }
-            .map { (app, controllers) ->
-                SdcGroupNode("$app (${controllers.size})", SdcIcons.app, controllers.map { SdcControllerNode(it) })
-            }
-        root.add(toTreeNode(SdcGroupNode("Controllers", SdcIcons.root, controllerGroups)))
+        val appGroups = when (kind) {
+            SdcTabKind.CONTROLLERS -> snapshot.controllers
+                .filter { it.value.isNotEmpty() }
+                .map { (app, controllers) ->
+                    SdcGroupNode(app, SdcIcons.app, hint = "${controllers.size}", children = controllers.map { SdcControllerNode(it) })
+                }
+            SdcTabKind.MODELS -> snapshot.models
+                .groupBy { it.app ?: "?" }
+                .map { (app, models) ->
+                    SdcGroupNode(app, SdcIcons.app, hint = "${models.size}", children = models.map { SdcModelNode(it) })
+                }
+        }
+        appGroups.forEach { root.add(toTreeNode(it)) }
 
-        val modelGroups = snapshot.models
-            .groupBy { it.app ?: "?" }
-            .map { (app, models) ->
-                SdcGroupNode("$app (${models.size})", SdcIcons.app, models.map { SdcModelNode(it) })
-            }
-        root.add(toTreeNode(SdcGroupNode("Models", SdcIcons.root, modelGroups)))
-
-        snapshot.errors.forEach { error ->
-            root.add(DefaultMutableTreeNode(SdcInfoNode("warning: ${error.take(300)}", SdcIcons.info), false))
+        errors.forEach { error ->
+            root.add(DefaultMutableTreeNode(SdcInfoNode("warning: ${error.take(300)}", SdcIcons.warning), false))
         }
         return root
     }
@@ -170,25 +142,25 @@ class SdcToolWindowPanel(private val project: Project) : JBPanel<SdcToolWindowPa
         }
     }
 
-    private class SdcTreeRenderer : DefaultTreeCellRenderer() {
-        override fun getTreeCellRendererComponent(
+    /** Sets the icon per row; DefaultTreeCellRenderer's open/closed/leaf icon fields leak between rows. */
+    private class SdcTreeRenderer : ColoredTreeCellRenderer() {
+        override fun customizeCellRenderer(
             tree: JTree,
-            value: Any,
-            sel: Boolean,
+            value: Any?,
+            selected: Boolean,
             expanded: Boolean,
             leaf: Boolean,
             row: Int,
             hasFocus: Boolean,
-        ): java.awt.Component {
-            super.getTreeCellRendererComponent(tree, value, sel, expanded, leaf, row, hasFocus)
+        ) {
             val node = (value as? DefaultMutableTreeNode)?.userObject as? SdcTreeNode
-            if (node != null) {
-                text = node.label
-                openIcon = node.icon
-                closedIcon = node.icon
-                leafIcon = node.icon
+            if (node == null) {
+                append(value?.toString() ?: "")
+                return
             }
-            return this
+            icon = node.icon
+            append(node.label, node.textAttributes)
+            node.hint?.let { append("  $it", SimpleTextAttributes.GRAYED_ATTRIBUTES) }
         }
     }
 }
