@@ -27,6 +27,7 @@ class SdcInfoService(private val project: Project) {
         private val LOG = Logger.getInstance(SdcInfoService::class.java)
         private val GSON = Gson()
         private const val TIMEOUT_MS = 60_000
+        private const val PYTHON_ENV_FILE = ".sdc_python_env"
 
         @JvmStatic
         fun getInstance(project: Project): SdcInfoService = project.getService(SdcInfoService::class.java)
@@ -36,7 +37,8 @@ class SdcInfoService(private val project: Project) {
         val settings = SdcSettingsState.getInstance(project)
         val projectRoot = Path.of(requireNotNull(project.basePath) { "Project has no base path" })
         val workDir = settings.resolveProjectDir(projectRoot)
-        val python = settings.pythonInterpreter.ifBlank { "python3" }
+        requireManagePy(workDir)
+        val python = resolvePython(workDir)
         val errors = mutableListOf<String>()
         var controllers: Map<String, List<SdcControllerInfo>> = emptyMap()
         var models: List<SdcModelInfo> = emptyList()
@@ -62,13 +64,53 @@ class SdcInfoService(private val project: Project) {
         return SdcSnapshot(controllers, models, errors)
     }
 
-    private fun runCommand(python: String, workDir: Path, command: String): String {
+    private fun requireManagePy(workDir: Path) {
         if (!Files.exists(workDir.resolve("manage.py"))) {
             throw SdcCommandException(
                 "manage.py not found in '$workDir'. Configure the manage.py directory in Settings > Tools > SimpleDomControl.",
                 "",
             )
         }
+    }
+
+    /**
+     * The interpreter comes from `Assets/.sdc_python_env` (`PYTHON="/path/to/python"`), which
+     * sdc_core writes with `sys.executable` whenever Django starts (e.g. `manage.py runserver`).
+     */
+    private fun resolvePython(workDir: Path): String {
+        val envFile = workDir.resolve("Assets").resolve(PYTHON_ENV_FILE)
+        val hint = "Run the server once (python manage.py runserver, even if it fails to start) " +
+                "with the project's interpreter, so that SDC writes Assets/$PYTHON_ENV_FILE. Then refresh."
+        if (!Files.isRegularFile(envFile)) {
+            throw SdcCommandException("'$envFile' not found. $hint", "")
+        }
+        val python = try {
+            parsePythonEnv(Files.readAllLines(envFile, StandardCharsets.UTF_8))
+        } catch (e: Exception) {
+            throw SdcCommandException("Cannot read '$envFile': ${e.message}. $hint", "")
+        }
+        if (python.isNullOrBlank()) {
+            throw SdcCommandException("'$envFile' does not define PYTHON. $hint", "")
+        }
+        if (!Files.isExecutable(Path.of(python))) {
+            throw SdcCommandException(
+                "Python interpreter '$python' from '$envFile' does not exist or is not executable. $hint",
+                "",
+            )
+        }
+        return python
+    }
+
+    private fun parsePythonEnv(lines: List<String>): String? =
+        lines.asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .map { it.removePrefix("export ").trim() }
+            .filter { it.substringBefore('=').trim() == "PYTHON" }
+            .map { it.substringAfter('=').trim().removeSurrounding("\"").removeSurrounding("'").trim() }
+            .lastOrNull()
+
+    private fun runCommand(python: String, workDir: Path, command: String): String {
         val commandLine = GeneralCommandLine(python).apply {
             addParameters("manage.py", command)
             withWorkDirectory(workDir.toFile())

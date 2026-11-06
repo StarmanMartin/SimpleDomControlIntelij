@@ -30,14 +30,15 @@ working directory; they only exist after `python manage.py sdc_init` (the projec
 - PyCharm (developed and compiled against PyCharm Professional 2026.2.3, build 262.*;
   **requires IDE 2026.2 or newer** — classes are JVM 25 bytecode, matching the 2026.2 JBR)
   with an SDC-initialized Django project opened.
-- A Python interpreter with Django installed that can run the project's `manage.py`
-  (the framework requires Python >= 3.13, Django >= 6.0).
+- The Django server must have been started **once** (`python manage.py runserver`, even if it
+  fails to start) with the project's interpreter. SDC then writes `Assets/.sdc_python_env`
+  (`PYTHON="/path/to/python"`), and the plugin runs the management commands with that interpreter.
+  Without the file the tool window shows an error asking you to do so.
 
 ## Configuration
 
 `Settings > Tools > SimpleDomControl`:
 
-- **Python interpreter** — executable used to run the management commands (default: `python3`).
 - **manage.py directory** — root of the SDC Django project; leave empty to use the IntelliJ
   project root.
 

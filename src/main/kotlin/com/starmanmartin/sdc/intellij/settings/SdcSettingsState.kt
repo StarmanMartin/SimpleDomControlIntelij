@@ -10,9 +10,6 @@ import java.nio.file.Path
 @State(name = "SimpleDomControlSettings", storages = [Storage(StoragePathMacros.WORKSPACE_FILE)])
 class SdcSettingsState : PersistentStateComponent<SdcSettingsState> {
 
-    /** Interpreter used to run the Django management commands; must have Django installed. */
-    var pythonInterpreter: String = "python3"
-
     /**
      * Directory containing manage.py of the SDC project. Relative paths are resolved
      * against the IntelliJ project root; empty means the project root itself.
@@ -28,7 +25,6 @@ class SdcSettingsState : PersistentStateComponent<SdcSettingsState> {
     override fun getState(): SdcSettingsState = this
 
     override fun loadState(state: SdcSettingsState) {
-        pythonInterpreter = state.pythonInterpreter
         managePyDir = state.managePyDir
         managedHtmlTags = state.managedHtmlTags.toMutableList()
         managedHtmlAttributes = state.managedHtmlAttributes.toMutableList()

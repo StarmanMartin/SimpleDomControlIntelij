@@ -19,8 +19,10 @@ The parent repo's `AGENTS.md` and `DOCUMENTATION.md` (one level up) describe the
 
 ## Environment gotchas
 
-- The `SimpleDomControl` poetry venv in this workspace is **empty** (no Django); the system
-  `python3` (asdf 3.13) has Django 6.0.6 and runs the commands fine. Default interpreter `python3`.
+- The interpreter is **not** configurable: it is read from `<manage.py dir>/Assets/.sdc_python_env`
+  (`PYTHON="..."`), which `sdc_core/apps.py` writes with `sys.executable` on every Django start.
+  Missing file / missing `PYTHON` / non-executable path → error telling the user to run the
+  server once.
 - Stack versions are pinned in `build.gradle.kts`: IntelliJ Platform Gradle Plugin 2.19.0,
   Kotlin 2.4.20 (2.4.21 is RC-only on the Gradle portal), Gradle wrapper 9.8.0, dev platform
   `pycharmProfessional("2026.2.3")` (the user's installed Toolbox PyCharm 2026.2.3, build
